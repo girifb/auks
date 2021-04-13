@@ -375,11 +375,11 @@ auks_krb5_stream_authenticate(auks_krb5_stream_t * kstream,
 		/* addresses because krb5 protocol check those addresses */
 		/* while cyphering and decyphering data */
 		if ( kstream->flags & AUKS_KRB5_STREAM_NAT_TRAVERSAL ) {
-			klocal_addr.addrtype = AF_INET ;
-			klocal_addr.length = 5 ;
+			klocal_addr.addrtype = AF_INET6 ;
+			klocal_addr.length = 17 ;
 			klocal_addr.contents = (krb5_octet *) "dummy" ;
-			kremote_addr.addrtype = AF_INET ;
-			kremote_addr.length = 5 ;
+			kremote_addr.addrtype = AF_INET6 ;
+			kremote_addr.length = 17 ;
 			kremote_addr.contents = (krb5_octet *) "dummy";
 			auks_log("NAT traversal required, "
 				 "setting dummy addresses");

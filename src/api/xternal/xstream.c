@@ -155,8 +155,8 @@ xstream_create(const char* hostname,
   int fstatus=XERROR;
   int status=-1;
 
-  /* create an AF_INET socket */
-  if ( ( sock = socket(AF_INET, SOCK_STREAM, 0) ) < 0 ){
+  /* create an AF_INET6 socket */
+  if ( ( sock = socket(AF_INET6, SOCK_STREAM, 0) ) < 0 ){
     ERROR("socket creation failed : %s",strerror(errno));
     return XERROR_STREAM_SOCKET;
   }
@@ -177,7 +177,7 @@ xstream_create(const char* hostname,
    */
   memset(&hints,0,sizeof(hints));
   hints.ai_flags=AI_PASSIVE;
-  hints.ai_family=AF_INET;
+  hints.ai_family=AF_INET6;
   
   /*
    * get 'hostname' network informations
@@ -198,9 +198,9 @@ xstream_create(const char* hostname,
     for(ai=aitop; ai; ai=ai->ai_next){
       memcpy(&addr,ai->ai_addr,ai->ai_addrlen);
       
-      if(addr.sin_family==AF_INET){
+      if(addr.sin_family==AF_INET6){
 	memset(& addresse, 0, sizeof(struct sockaddr_in));
-	addresse.sin_family = AF_INET;
+	addresse.sin_family = AF_INET6;
 	addresse.sin_port = addr.sin_port;
 	addresse.sin_addr.s_addr = addr.sin_addr.s_addr;
 	
@@ -215,7 +215,7 @@ xstream_create(const char* hostname,
 	  break;
 	} /* bind */
 
-      } /* AF_INET check */
+      } /* AF_INET6 check */
 
     } /* for(ai=...) */
 
@@ -267,7 +267,7 @@ xstream_connect(const char* hostname,
 
   /* set hint flag that indicate to get TCP/IP information only */
   memset(&hints,0,sizeof(hints));
-  hints.ai_family=AF_INET;
+  hints.ai_family=AF_INET6;
   hints.ai_socktype=SOCK_STREAM;
 
   /*
@@ -288,12 +288,12 @@ xstream_connect(const char* hostname,
       memset(&addresse, 0, sizeof(struct sockaddr_in));
       memcpy(&addr,ai->ai_addr,ai->ai_addrlen);
 
-	addresse.sin_family = AF_INET;
+	addresse.sin_family = AF_INET6;
 	addresse.sin_port = addr.sin_port;
 	addresse.sin_addr.s_addr = addr.sin_addr.s_addr;
 
-	/* create an AF_INET socket */
-	if (( sock = socket(AF_INET, SOCK_STREAM, 0) ) < 0 ){
+	/* create an AF_INET6 socket */
+	if (( sock = socket(AF_INET6, SOCK_STREAM, 0) ) < 0 ){
 	  ERROR("socket creation failed : %s",strerror(errno));
 	  fstatus=XERROR_STREAM_SOCKET;
 	  continue;

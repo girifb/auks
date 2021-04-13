@@ -453,7 +453,7 @@ _auks_acl_rule_check_host(auks_acl_rule_t * p_rule,char *host)
 	/* check matching DNS entries */
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_flags = AI_CANONNAME;
-	hints.ai_family = AF_INET;
+	hints.ai_family = AF_INET6;
 	hints.ai_socktype = SOCK_STREAM;
 	if (getaddrinfo(p_rule->host, "", &hints, &aitop) == 0) {
 		for (ai = aitop; ai; ai = ai->ai_next) {
