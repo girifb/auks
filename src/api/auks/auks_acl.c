@@ -435,7 +435,9 @@ _auks_acl_rule_check_host(auks_acl_rule_t * p_rule,char *host)
 	struct addrinfo *aitop;
 	struct addrinfo hints;
 	struct addrinfo *ai;
-	struct sockaddr_in addr;
+	struct sockaddr_in6 addr;
+
+	char str_ipv6_inet_addr[INET6_ADDRSTRLEN];
 
 	/* all nodes match */
 	if (strncmp(p_rule->host, "*", 2) == 0) {
@@ -453,13 +455,13 @@ _auks_acl_rule_check_host(auks_acl_rule_t * p_rule,char *host)
 	/* check matching DNS entries */
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_flags = AI_CANONNAME;
-	hints.ai_family = AF_INET;
+	hints.ai_family = AF_INET6;
 	hints.ai_socktype = SOCK_STREAM;
 	if (getaddrinfo(p_rule->host, "", &hints, &aitop) == 0) {
 		for (ai = aitop; ai; ai = ai->ai_next) {
 			char * rule_host;
 			memcpy(&addr, ai->ai_addr, ai->ai_addrlen);
-			rule_host = inet_ntoa((struct in_addr) addr.sin_addr);
+			rule_host = inet_ntop(AF_INET6, &addr.sin6_addr, str_ipv6_inet_addr, sizeof(str_ipv6_inet_addr));
 			if (strncmp(host, rule_host, strlen(host) + 1) ==
 			    0) {
 				fstatus = AUKS_SUCCESS;

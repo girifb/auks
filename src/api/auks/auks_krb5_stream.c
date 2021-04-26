@@ -113,6 +113,9 @@ extern krb5_error_code k5_rc_close(krb5_context context, krb5_rcache rc);
 #define LOCAL_PRINCIPAL 1
 #define REMOTE_PRINCIPAL 2
 
+#define INET_ADDRLEN 4
+#define INET6_ADDRLEN 16
+
 int
 auks_krb5_stream_init_base(auks_krb5_stream_t * kstream, int stream,
 			   int flags);
@@ -375,11 +378,11 @@ auks_krb5_stream_authenticate(auks_krb5_stream_t * kstream,
 		/* addresses because krb5 protocol check those addresses */
 		/* while cyphering and decyphering data */
 		if ( kstream->flags & AUKS_KRB5_STREAM_NAT_TRAVERSAL ) {
-			klocal_addr.addrtype = AF_INET ;
-			klocal_addr.length = 5 ;
+			klocal_addr.addrtype = AF_INET6 ;
+			klocal_addr.length = INET6_ADDRLEN + 1;
 			klocal_addr.contents = (krb5_octet *) "dummy" ;
-			kremote_addr.addrtype = AF_INET ;
-			kremote_addr.length = 5 ;
+			kremote_addr.addrtype = AF_INET6 ;
+			kremote_addr.length = INET6_ADDRLEN  + 1;
 			kremote_addr.contents = (krb5_octet *) "dummy";
 			auks_log("NAT traversal required, "
 				 "setting dummy addresses");
@@ -788,7 +791,7 @@ auks_krb5_stream_init_base(auks_krb5_stream_t * kstream, int stream,int flags)
 	char *remote_host;
 
 	/* stream related variables */
-	struct sockaddr_in local_addr, remote_addr;
+	struct sockaddr_in6 local_addr, remote_addr;
 	socklen_t addrlen;
 
 	krb5_error_code kstatus;
@@ -813,8 +816,9 @@ auks_krb5_stream_init_base(auks_krb5_stream_t * kstream, int stream,int flags)
 	kstream->flags = flags;
 
 	char str_error[STR_ERROR_SIZE];
+	char str_ipv6_inet_addr[INET6_ADDRSTRLEN];
 
-	/* fill sockaddr_in structures with stream endpoints informations */
+	/* fill sockaddr_in6 structures with stream endpoints informations */
 	addrlen = sizeof(local_addr);
 	status = getsockname(stream, (struct sockaddr *) &local_addr,
 			     &addrlen);
@@ -841,7 +845,7 @@ auks_krb5_stream_init_base(auks_krb5_stream_t * kstream, int stream,int flags)
 	auks_log("remote endpoint stream %u informations request succeed",
 		 stream);
 
-	remote_host = inet_ntoa((remote_addr.sin_addr));
+	remote_host = inet_ntop(AF_INET6, &remote_addr.sin6_addr, str_ipv6_inet_addr, sizeof(str_ipv6_inet_addr));
 	if (remote_host)
 		strncpy(kstream->remote_host, remote_host,
 			HOST_NAME_MAX);
@@ -915,12 +919,12 @@ auks_krb5_stream_init_base(auks_krb5_stream_t * kstream, int stream,int flags)
 	}
 
 	/* kerberos : set auth context endpoints */
-	klocal_addr.addrtype = local_addr.sin_family;
-	klocal_addr.length = sizeof(local_addr.sin_addr);
-	klocal_addr.contents = (krb5_octet *) & local_addr.sin_addr;
-	kremote_addr.addrtype = remote_addr.sin_family;
-	kremote_addr.length = sizeof(remote_addr.sin_addr);
-	kremote_addr.contents = (krb5_octet *) & remote_addr.sin_addr;
+	klocal_addr.addrtype = local_addr.sin6_family;
+	klocal_addr.length = sizeof(local_addr.sin6_addr);
+	klocal_addr.contents = (krb5_octet *) & local_addr.sin6_addr;
+	kremote_addr.addrtype = remote_addr.sin6_family;
+	kremote_addr.length = sizeof(remote_addr.sin6_addr);
+	kremote_addr.contents = (krb5_octet *) & remote_addr.sin6_addr;
 	kstatus = krb5_auth_con_setaddrs(kstream->context,kstream->auth_context,
 					 &klocal_addr, &kremote_addr);
 	if (kstatus) {
