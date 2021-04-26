@@ -109,11 +109,11 @@ extern int errno;
 #endif
 
 #ifndef XSTREAM_VERBOSE_BASE_LEVEL
-#define XSTREAM_VERBOSE_BASE_LEVEL 7
+#define XSTREAM_VERBOSE_BASE_LEVEL 1
 #endif
 
 #ifndef XSTREAM_DEBUG_BASE_LEVEL
-#define XSTREAM_DEBUG_BASE_LEVEL   7
+#define XSTREAM_DEBUG_BASE_LEVEL   1
 #endif
 
 #define VERBOSE(h,a...) xverboseN(XSTREAM_VERBOSE_BASE_LEVEL,XSTREAM_LOGHEADER h,##a)
@@ -147,13 +147,15 @@ xstream_create(const char* hostname,
 
   struct addrinfo* ai;
   struct addrinfo* aitop;
-  struct sockaddr_in addr;
-  struct sockaddr_in addresse;
+  struct sockaddr_in6 addr;
+  struct sockaddr_in6 addresse;
 
   struct addrinfo hints;
 
   int fstatus=XERROR;
   int status=-1;
+
+  char str_ipv6_inet_addr[INET6_ADDRSTRLEN];
 
   /* create an AF_INET6 socket */
   if ( ( sock = socket(AF_INET6, SOCK_STREAM, 0) ) < 0 ){
@@ -198,22 +200,27 @@ xstream_create(const char* hostname,
     for(ai=aitop; ai; ai=ai->ai_next){
       memcpy(&addr,ai->ai_addr,ai->ai_addrlen);
       
-      if(addr.sin_family==AF_INET6){
-	memset(& addresse, 0, sizeof(struct sockaddr_in));
-	addresse.sin_family = AF_INET6;
-	addresse.sin_port = addr.sin_port;
-	addresse.sin_addr.s_addr = addr.sin_addr.s_addr;
+      if(addr.sin6_family==AF_INET6){
+        memset(& addresse, 0, sizeof(struct sockaddr_in6));
+        addresse.sin6_family = AF_INET6;
+        addresse.sin6_port = addr.sin6_port;
+        memcpy(& addresse.sin6_addr.s6_addr, & addr.sin6_addr.s6_addr, sizeof(addr.sin6_addr.s6_addr));
 	
-	if(bind(sock, (struct sockaddr*) &addresse, sizeof(struct sockaddr_in))<0){
-	  ERROR("bind(%s:%d) failed : %s",inet_ntoa(addr.sin_addr),ntohs(addr.sin_port),strerror(errno));
-	  fstatus=XERROR_STREAM_BIND;
-	  continue;
-	}
-	else{
-	  VERBOSE("bind(%s:%d) succeed",inet_ntoa(addr.sin_addr),ntohs(addr.sin_port));
-	  fstatus=XSUCCESS;
-	  break;
-	} /* bind */
+        if(bind(sock, (struct sockaddr*) &addresse, sizeof(struct sockaddr_in6))<0){
+          ERROR("bind(%s:%d) failed : %s",
+            inet_ntop(AF_INET6, &addresse.sin6_addr, str_ipv6_inet_addr, sizeof(str_ipv6_inet_addr)),
+            ntohs(addresse.sin6_port),
+            strerror(errno));
+          fstatus=XERROR_STREAM_BIND;
+          continue;
+        }
+        else{
+          VERBOSE("bind(%s:%d) succeed",
+            inet_ntop(AF_INET6, &addresse.sin6_addr, str_ipv6_inet_addr, sizeof(str_ipv6_inet_addr)),
+            ntohs(addresse.sin6_port));
+          fstatus=XSUCCESS;
+          break;
+        } /* bind */
 
       } /* AF_INET6 check */
 
@@ -253,8 +260,8 @@ xstream_connect(const char* hostname,
 
   struct addrinfo* ai;
   struct addrinfo* aitop;
-  struct sockaddr_in addr;
-  struct sockaddr_in addresse;
+  struct sockaddr_in6 addr;
+  struct sockaddr_in6 addresse;
   
   socklen_t optlen;
   struct addrinfo hints;
@@ -264,6 +271,8 @@ xstream_connect(const char* hostname,
 
   int fstatus=XERROR;
   int status;
+
+  char str_ipv6_inet_addr[INET6_ADDRSTRLEN];
 
   /* set hint flag that indicate to get TCP/IP information only */
   memset(&hints,0,sizeof(hints));
@@ -285,12 +294,12 @@ xstream_connect(const char* hostname,
      * for all returned addresses try to connect the socket to
      */
     for(ai=aitop; ai; ai=ai->ai_next){
-      memset(&addresse, 0, sizeof(struct sockaddr_in));
+      memset(&addresse, 0, sizeof(struct sockaddr_in6));
       memcpy(&addr,ai->ai_addr,ai->ai_addrlen);
 
-	addresse.sin_family = AF_INET6;
-	addresse.sin_port = addr.sin_port;
-	addresse.sin_addr.s_addr = addr.sin_addr.s_addr;
+	addresse.sin6_family = AF_INET6;
+	addresse.sin6_port = addr.sin6_port;
+  memcpy(& addresse.sin6_addr.s6_addr, & addr.sin6_addr.s6_addr, sizeof(addr.sin6_addr.s6_addr));
 
 	/* create an AF_INET6 socket */
 	if (( sock = socket(AF_INET6, SOCK_STREAM, 0) ) < 0 ){
@@ -313,11 +322,13 @@ xstream_connect(const char* hostname,
 	}
 
 	int rc;
-	rc=connect(sock, (struct sockaddr*) &addresse, sizeof(struct sockaddr_in));
+	rc=connect(sock, (struct sockaddr*) &addresse, sizeof(struct sockaddr_in6));
 	/* connection failed */
 	if(rc<0 && errno != EINPROGRESS && errno != EALREADY){
-	  ERROR("connect (%s:%d) failed : %s (%d)",inet_ntoa(addresse.sin_addr),
-		ntohs(addresse.sin_port),strerror(errno),errno);
+	  ERROR("connect (%s:%d) failed : %s (%d)",
+      inet_ntop(AF_INET6, &addresse.sin6_addr, str_ipv6_inet_addr, sizeof(str_ipv6_inet_addr)),
+		  ntohs(addresse.sin6_port),
+      strerror(errno),errno);
 	  fstatus=XERROR_STREAM_CONNECT;
 	  close(sock);
 	  continue;
@@ -334,11 +345,15 @@ xstream_connect(const char* hostname,
 	  while(rc==-1 && (errno==EINTR || errno==EALREADY));
 
 	  if(rc==-1){
-	    ERROR("poll (%s:%d) failed : %s",inet_ntoa(addresse.sin_addr),ntohs(addresse.sin_port),
-		  strerror(errno));
+	    ERROR("poll (%s:%d) failed : %s",
+        inet_ntop(AF_INET6, &addresse.sin6_addr, str_ipv6_inet_addr, sizeof(str_ipv6_inet_addr)),
+        ntohs(addresse.sin6_port),
+		    strerror(errno));
 	  }
 	  else if(rc==0){
-	    ERROR("poll (%s:%d) times out",inet_ntoa(addresse.sin_addr),ntohs(addresse.sin_port));
+	    ERROR("poll (%s:%d) times out",
+        inet_ntop(AF_INET6, &addresse.sin6_addr, str_ipv6_inet_addr, sizeof(str_ipv6_inet_addr)),
+        ntohs(addresse.sin6_port));
 	  }
 	  else{
 	    /* we have to verify that this is not an error that trigger poll success */
@@ -346,18 +361,23 @@ xstream_connect(const char* hostname,
 	    rc=getsockopt(sock,SOL_SOCKET,SO_ERROR,&sockopt,&optlen);
 	    if(rc<0){
 	      ERROR("unable to get socket SO_ERROR value despite of %s:%d polling success : %s",
-		    inet_ntoa(addresse.sin_addr),ntohs(addresse.sin_port),strerror(errno));
+		      inet_ntop(AF_INET6, &addresse.sin6_addr, str_ipv6_inet_addr, sizeof(str_ipv6_inet_addr)),
+          ntohs(addresse.sin6_port),
+          strerror(errno));
 	    }
 	    else{
 	      if(sockopt){
-		ERROR("connect (%s:%d) failed while polling : %s",inet_ntoa(addresse.sin_addr),
-		      ntohs(addresse.sin_port),strerror(sockopt));
+		      ERROR("connect (%s:%d) failed while polling : %s",
+            inet_ntop(AF_INET6, &addresse.sin6_addr, str_ipv6_inet_addr, sizeof(str_ipv6_inet_addr)),
+		        ntohs(addresse.sin6_port),
+            strerror(sockopt));
 	      }
 	      else{
-		VERBOSE("connect (%s:%d) succeed while polling",inet_ntoa(addresse.sin_addr),
-			ntohs(addresse.sin_port));
-		fstatus=XSUCCESS;
-		break;
+		      VERBOSE("connect (%s:%d) succeed while polling",
+            inet_ntop(AF_INET6, &addresse.sin6_addr, str_ipv6_inet_addr, sizeof(str_ipv6_inet_addr)),
+			      ntohs(addresse.sin6_port));
+		      fstatus=XSUCCESS;
+		      break;
 	      }
 	    }
 	  }
@@ -366,8 +386,9 @@ xstream_connect(const char* hostname,
 	}
 	/* connection succeed immediately */
 	else{
-	  VERBOSE("connect (%s:%d) immediately succeed",inet_ntoa(addresse.sin_addr),
-		  ntohs(addresse.sin_port));
+	  VERBOSE("connect (%s:%d) immediately succeed",
+      inet_ntop(AF_INET6, &addresse.sin6_addr, str_ipv6_inet_addr, sizeof(str_ipv6_inet_addr)),
+		  ntohs(addresse.sin6_port));
 	  fstatus=XSUCCESS;
 	  break;
 	}
@@ -406,7 +427,7 @@ xstream_accept(int socket){
   INIT_DEBUG2_MARK();
 
   int incoming_stream;
-  struct sockaddr_in remote_addr;
+  struct sockaddr_in6 remote_addr;
   socklen_t addrlen;
 
   int fstatus=XERROR;
